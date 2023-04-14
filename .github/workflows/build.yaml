@@ -22,7 +22,7 @@ jobs:
     - name: Build and push the Docker image
       run: |
         IMAGE_VERSION=`cat currentversion`
-        docker image build linux/amd64,linux/arm64 \
+        docker image build \
           -t ${REGISTRY_NAME}/${image_name}:$IMAGE_VERSION \
           -t ${REGISTRY_NAME}/${image_name}:latest \
           --build-arg VERSION=$IMAGE_VERSION \
