@@ -9,21 +9,48 @@ on:
   # workaround for #526
   workflow_dispatch:
 
+permissions:
+  id-token: write
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
 
-      - name: Checkout
-        uses: actions/checkout@v5
+    - name: Checkout
+      uses: actions/checkout@v5
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
 
-      - name: build and push all images
-        if: ${{ env.DOCKER_USERNAME != '' && env.DOCKER_PASSWORD != '' }}
-        env:
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-        run: |
-          ./build.py --push-tags --multiarch --both
+    - name: Log in to Azure
+      uses: azure/login@v1
+      with:
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+    - name: Get build secrets
+      id: docker-credentials
+      run: |
+        USERNAME=$(az keyvault secret show --name ${{ secrets.REGISTRY_KEY }}-username --vault-name "${{ secrets.AZURE_KEYVAULT_NAME }}" --query value -o tsv)
+        PASSWORD=$(az keyvault secret show --name ${{ secrets.REGISTRY_KEY }}-password --vault-name "${{ secrets.AZURE_KEYVAULT_NAME }}" --query value -o tsv)
+        REGISTRY="quay.io"
+
+        echo "DOCKER_USERNAME=$USERNAME" >> "$GITHUB_OUTPUT"
+        echo "DOCKER_PASSWORD=$PASSWORD" >> "$GITHUB_OUTPUT"
+        echo "DOCKER_REGISTRY=$REGISTRY" >> "$GITHUB_OUTPUT"
+
+        echo "::add-mask::$USERNAME"
+        echo "::add-mask::$PASSWORD"
+
+    - name: build and push all images
+      if: ${{ env.DOCKER_USERNAME != '' && env.DOCKER_PASSWORD != '' }}
+      env:
+        DOCKER_PASSWORD: ${{ steps.docker-credentials.outputs.DOCKER_PASSWORD }}
+        DOCKER_USERNAME: ${{ steps.docker-credentials.outputs.DOCKER_USERNAME }}
+        DOCKER_REGISTRY: ${{ steps.docker-credentials.outputs.DOCKER_REGISTRY }}
+        DOCKER_IMAGE_NAME: ${{ vars.DOCKER_IMAGE_NAME }}
+      run: |
+        ./build.py --push-tags --multiarch --both

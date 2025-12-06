@@ -50,9 +50,11 @@ def build_singlearch(build_dir, build_args, image_type="regular"):
 
 
 def push_singlearch(tags):
+    registry = os.environ["DOCKER_REGISTRY"]
+    image_name = os.environ["DOCKER_IMAGE_NAME"]
     for tag in tags:
         try:
-            subprocess.run(["docker", "push", f"factoriotools/factorio:{tag}"],
+            subprocess.run(["docker", "push", f"{registry}/{image_name}:{tag}"],
                             check=True)
         except subprocess.CalledProcessError:
             print("Docker push failed")
@@ -60,11 +62,13 @@ def push_singlearch(tags):
 
 
 def build_and_push(sha256, version, tags, push, multiarch, dockerfile="Dockerfile", builder_suffix=""):
+    registry = os.environ["DOCKER_REGISTRY"]
+    image_name = os.environ["DOCKER_IMAGE_NAME"]
     build_dir = tempfile.mktemp()
     shutil.copytree("docker", build_dir)
     build_args = ["-f", dockerfile, "--build-arg", f"VERSION={version}", "--build-arg", f"SHA256={sha256}", "."]
     for tag in tags:
-        build_args.extend(["-t", f"factoriotools/factorio:{tag}"])
+        build_args.extend(["-t", f"{registry}/{image_name}:{tag}"])
     
     image_type = "rootless" if "rootless" in dockerfile.lower() else "regular"
     
@@ -80,7 +84,8 @@ def login():
     try:
         username = os.environ["DOCKER_USERNAME"]
         password = os.environ["DOCKER_PASSWORD"]
-        subprocess.run(["docker", "login", "-u", username, "-p", password], check=True)
+        registry = os.environ["DOCKER_REGISTRY"]
+        subprocess.run(["docker", "login", registry, "-u", username, "-p", password], check=True)
     except KeyError:
         print("Username and password need to be given")
         exit(1)

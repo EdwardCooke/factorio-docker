@@ -8,13 +8,11 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
-    if: github.event_name != 'schedule' || (github.event_name == 'schedule' && github.repository == 'factoriotools/factorio-docker')
+    if: github.event_name != 'schedule' || (github.event_name == 'schedule' && github.repository == 'edwardcooke/factorio-docker')
 
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          token: ${{ secrets.REPO_TOKEN }}
 
       - name: Run update script
         run: ./update.sh
